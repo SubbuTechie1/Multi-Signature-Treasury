@@ -1,0 +1,84 @@
+{
+  "$id": "https://example.org/schemas/treasury.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Treasury",
+  "description": "Schema for a multi-signature treasury",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique treasury identifier (Sui object ID)"
+    },
+    "signers": {
+      "type": "array",
+      "description": "List of authorized signer addresses",
+      "items": {
+        "type": "string",
+        "pattern": "^0x[a-fA-F0-9]{64}$"
+      },
+      "minItems": 2,
+      "uniqueItems": true
+    },
+    "threshold": {
+      "type": "integer",
+      "description": "Number of signatures required for normal operations",
+      "minimum": 2
+    },
+    "emergency_signers": {
+      "type": "array",
+      "description": "List of emergency signer addresses",
+      "items": {
+        "type": "string",
+        "pattern": "^0x[a-fA-F0-9]{64}$"
+      },
+      "uniqueItems": true
+    },
+    "emergency_threshold": {
+      "type": "integer",
+      "description": "Number of signatures required for emergency operations",
+      "minimum": 1
+    },
+    "balances": {
+      "type": "array",
+      "description": "Treasury balances by coin type",
+      "items": {
+        "$ref": "#/definitions/balance"
+      }
+    },
+    "policies": {
+      "type": "array",
+      "description": "Active policy IDs",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_at": {
+      "type": "integer",
+      "description": "Timestamp when treasury was created",
+      "minimum": 0
+    },
+    "is_frozen": {
+      "type": "boolean",
+      "description": "Whether treasury is frozen",
+      "default": false
+    }
+  },
+  "required": ["id", "signers", "threshold"],
+  "definitions": {
+    "balance": {
+      "type": "object",
+      "properties": {
+        "coin_type": {
+          "type": "string",
+          "description": "Full coin type identifier"
+        },
+        "amount": {
+          "type": "string",
+          "description": "Balance amount in smallest unit",
+          "pattern": "^[0-9]+$"
+        }
+      },
+      "required": ["coin_type", "amount"]
+    }
+  }
+}

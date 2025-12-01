@@ -1,0 +1,789 @@
+openapi: 3.0.3
+info:
+  title: MultiSig Treasury API
+  version: 1.0.0
+  description: |
+    REST API for managing multi-signature treasuries on Sui blockchain.
+    Supports programmable spending policies, time-locked proposals, and emergency procedures.
+  contact:
+    name: API Support
+    email: support@example.org
+
+servers:
+  - url: https://api.example.org/v1
+    description: Production server
+  - url: http://localhost:3000/v1
+    description: Development server
+
+tags:
+  - name: Treasury
+    description: Treasury management operations
+  - name: Proposal
+    description: Proposal lifecycle operations
+  - name: Policy
+    description: Policy management operations
+  - name: Emergency
+    description: Emergency operations
+
+paths:
+  /treasury/create:
+    post:
+      summary: Create a new treasury
+      description: Initialize a new multi-signature treasury with signers and policies
+      tags:
+        - Treasury
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTreasuryRequest'
+            examples:
+              basic:
+                summary: Basic treasury
+                value:
+                  signers: ["0x1234", "0x5678", "0x9abc"]
+                  threshold: 2
+              with_emergency:
+                summary: Treasury with emergency signers
+                value:
+                  signers: ["0x1234", "0x5678", "0x9abc"]
+                  threshold: 2
+                  emergency_signers: ["0x1234", "0x5678"]
+                  emergency_threshold: 2
+      responses:
+        '201':
+          description: Treasury created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Treasury'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /treasury/{id}:
+    get:
+      summary: Get treasury details
+      tags:
+        - Treasury
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Treasury ID (Sui object ID)
+      responses:
+        '200':
+          description: Treasury details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Treasury'
+        '404':
+          description: Treasury not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /treasury/{id}/deposit:
+    post:
+      summary: Deposit funds into treasury
+      tags:
+        - Treasury
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositRequest'
+      responses:
+        '200':
+          description: Deposit successful
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /treasury/{id}/balance:
+    get:
+      summary: Get treasury balances
+      tags:
+        - Treasury
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Treasury balances
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+
+  /treasury/{id}/signers:
+    put:
+      summary: Update treasury signers
+      description: Add or remove signers (requires multi-sig approval)
+      tags:
+        - Treasury
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSignersRequest'
+      responses:
+        '200':
+          description: Signers updated successfully
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /proposal/create:
+    post:
+      summary: Create a proposal
+      description: Create a spending proposal with transactions and metadata
+      tags:
+        - Proposal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProposalRequest'
+            examples:
+              single_transaction:
+                summary: Single payment
+                value:
+                  treasury_id: "0xtreasuryid"
+                  proposer: "0x1234"
+                  transactions:
+                    - recipient: "0xabcd"
+                      amount: 1000000000
+                      coin_type: "0x2::sui::SUI"
+                  metadata: "Q1 Marketing payment"
+                  category: 1
+              batch_transaction:
+                summary: Batch payments
+                value:
+                  treasury_id: "0xtreasuryid"
+                  proposer: "0x1234"
+                  transactions:
+                    - recipient: "0xabcd"
+                      amount: 1000000000
+                      coin_type: "0x2::sui::SUI"
+                    - recipient: "0xef01"
+                      amount: 500000000
+                      coin_type: "0x2::sui::SUI"
+                  metadata: "Team payments"
+                  category: 0
+      responses:
+        '201':
+          description: Proposal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+        '400':
+          description: Invalid request or policy violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /proposal/{id}:
+    get:
+      summary: Get proposal details
+      tags:
+        - Proposal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proposal details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+        '404':
+          description: Proposal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /proposal/{id}/sign:
+    post:
+      summary: Sign a proposal
+      description: Add signature to a proposal
+      tags:
+        - Proposal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignProposalRequest'
+      responses:
+        '200':
+          description: Signature added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+        '400':
+          description: Invalid signature or unauthorized signer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /proposal/{id}/execute:
+    post:
+      summary: Execute a proposal
+      description: Execute proposal after threshold and time-lock satisfied
+      tags:
+        - Proposal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proposal executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+        '400':
+          description: Execution failed (threshold not met, time-lock active, or policy violation)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /proposal/{id}/cancel:
+    post:
+      summary: Cancel a proposal
+      description: Cancel proposal (by creator or unanimous signers)
+      tags:
+        - Proposal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                canceller:
+                  type: string
+                  description: Address of the canceller
+              required:
+                - canceller
+      responses:
+        '200':
+          description: Proposal cancelled
+        '400':
+          description: Unauthorized or invalid state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /proposal/list:
+    get:
+      summary: List proposals
+      description: List all proposals with optional filters
+      tags:
+        - Proposal
+      parameters:
+        - name: treasury_id
+          in: query
+          schema:
+            type: string
+          description: Filter by treasury ID
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [created, signed, executable, executed, cancelled]
+          description: Filter by proposal status
+        - name: proposer
+          in: query
+          schema:
+            type: string
+          description: Filter by proposer address
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of proposals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proposals:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Proposal'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+
+  /policy/create:
+    post:
+      summary: Create a spending policy
+      description: Add a new policy to a treasury
+      tags:
+        - Policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '400':
+          description: Invalid policy configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /policy/{id}:
+    get:
+      summary: Get policy details
+      tags:
+        - Policy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+
+    delete:
+      summary: Remove a policy
+      description: Remove policy from treasury (requires multi-sig)
+      tags:
+        - Policy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy removed
+        '400':
+          description: Cannot remove policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /emergency/withdraw:
+    post:
+      summary: Emergency withdrawal
+      description: Execute emergency withdrawal with higher threshold
+      tags:
+        - Emergency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmergencyWithdrawRequest'
+      responses:
+        '200':
+          description: Emergency withdrawal executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+        '400':
+          description: Emergency conditions not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /emergency/freeze:
+    post:
+      summary: Freeze treasury
+      description: Freeze all treasury operations
+      tags:
+        - Emergency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                treasury_id:
+                  type: string
+                reason:
+                  type: string
+              required:
+                - treasury_id
+                - reason
+      responses:
+        '200':
+          description: Treasury frozen
+        '400':
+          description: Cannot freeze treasury
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    CreateTreasuryRequest:
+      type: object
+      properties:
+        signers:
+          type: array
+          items:
+            type: string
+          minItems: 2
+          description: List of signer addresses
+        threshold:
+          type: integer
+          minimum: 2
+          description: Number of signatures required
+        emergency_signers:
+          type: array
+          items:
+            type: string
+          description: Optional emergency signers
+        emergency_threshold:
+          type: integer
+          description: Emergency signature threshold
+      required:
+        - signers
+        - threshold
+
+    Treasury:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Treasury object ID
+        signers:
+          type: array
+          items:
+            type: string
+        threshold:
+          type: integer
+        emergency_signers:
+          type: array
+          items:
+            type: string
+        emergency_threshold:
+          type: integer
+        balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Balance'
+        policies:
+          type: array
+          items:
+            type: string
+          description: Policy IDs
+        created_at:
+          type: integer
+          format: int64
+
+    Balance:
+      type: object
+      properties:
+        coin_type:
+          type: string
+        amount:
+          type: string
+          description: Amount in smallest unit
+
+    DepositRequest:
+      type: object
+      properties:
+        coin_id:
+          type: string
+          description: Coin object ID to deposit
+        amount:
+          type: string
+      required:
+        - coin_id
+        - amount
+
+    BalanceResponse:
+      type: object
+      properties:
+        treasury_id:
+          type: string
+        balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Balance'
+
+    UpdateSignersRequest:
+      type: object
+      properties:
+        add_signers:
+          type: array
+          items:
+            type: string
+        remove_signers:
+          type: array
+          items:
+            type: string
+        new_threshold:
+          type: integer
+
+    CreateProposalRequest:
+      type: object
+      properties:
+        treasury_id:
+          type: string
+          description: Treasury ID
+        proposer:
+          type: string
+          description: Proposer address
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+          maxItems: 50
+        metadata:
+          type: string
+          description: Proposal description/justification
+        category:
+          type: integer
+          description: Spending category (0=Operations, 1=Marketing, 2=Development, etc.)
+      required:
+        - treasury_id
+        - proposer
+        - transactions
+        - category
+
+    Transaction:
+      type: object
+      properties:
+        recipient:
+          type: string
+          description: Recipient address
+        amount:
+          type: string
+          description: Amount in smallest unit
+        coin_type:
+          type: string
+          description: Coin type identifier
+      required:
+        - recipient
+        - amount
+        - coin_type
+
+    Proposal:
+      type: object
+      properties:
+        id:
+          type: string
+        treasury_id:
+          type: string
+        proposer:
+          type: string
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        signatures:
+          type: array
+          items:
+            $ref: '#/components/schemas/Signature'
+        created_at:
+          type: integer
+          format: int64
+        time_lock_end:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [created, signed, executable, executed, cancelled]
+        metadata:
+          type: string
+        category:
+          type: integer
+
+    Signature:
+      type: object
+      properties:
+        signer:
+          type: string
+        signature:
+          type: string
+        signed_at:
+          type: integer
+          format: int64
+
+    SignProposalRequest:
+      type: object
+      properties:
+        signer:
+          type: string
+          description: Signer address
+        signature:
+          type: string
+          description: Signature bytes (hex encoded)
+      required:
+        - signer
+        - signature
+
+    ExecutionResult:
+      type: object
+      properties:
+        proposal_id:
+          type: string
+        status:
+          type: string
+        transaction_digest:
+          type: string
+        gas_used:
+          type: string
+
+    CreatePolicyRequest:
+      type: object
+      properties:
+        treasury_id:
+          type: string
+        policy_type:
+          type: string
+          enum: [spending_limit, whitelist, category, time_lock, amount_threshold, approval]
+        config:
+          type: object
+          description: Policy-specific configuration
+      required:
+        - treasury_id
+        - policy_type
+        - config
+
+    Policy:
+      type: object
+      properties:
+        id:
+          type: string
+        treasury_id:
+          type: string
+        policy_type:
+          type: string
+        config:
+          type: object
+        created_at:
+          type: integer
+          format: int64
+
+    EmergencyWithdrawRequest:
+      type: object
+      properties:
+        treasury_id:
+          type: string
+        recipient:
+          type: string
+        amount:
+          type: string
+        coin_type:
+          type: string
+        reason:
+          type: string
+        signatures:
+          type: array
+          items:
+            $ref: '#/components/schemas/Signature'
+      required:
+        - treasury_id
+        - recipient
+        - amount
+        - coin_type
+        - reason
+        - signatures
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string

@@ -1,0 +1,211 @@
+{
+  "$id": "https://example.org/schemas/policy.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Policy",
+  "description": "Schema for treasury spending policies",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique policy identifier"
+    },
+    "treasury_id": {
+      "type": "string",
+      "description": "Associated treasury ID"
+    },
+    "policy_type": {
+      "type": "string",
+      "enum": ["spending_limit", "whitelist", "category", "time_lock", "amount_threshold", "approval"],
+      "description": "Type of policy"
+    },
+    "config": {
+      "type": "object",
+      "description": "Policy-specific configuration",
+      "oneOf": [
+        { "$ref": "#/definitions/spending_limit_config" },
+        { "$ref": "#/definitions/whitelist_config" },
+        { "$ref": "#/definitions/category_config" },
+        { "$ref": "#/definitions/time_lock_config" },
+        { "$ref": "#/definitions/amount_threshold_config" },
+        { "$ref": "#/definitions/approval_config" }
+      ]
+    },
+    "created_at": {
+      "type": "integer",
+      "description": "Timestamp when policy was created",
+      "minimum": 0
+    },
+    "is_active": {
+      "type": "boolean",
+      "description": "Whether policy is currently active",
+      "default": true
+    }
+  },
+  "required": ["id", "treasury_id", "policy_type", "config"],
+  "definitions": {
+    "spending_limit_config": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "integer",
+          "description": "Category this limit applies to (null for global)",
+          "minimum": 0
+        },
+        "daily_limit": {
+          "type": "string",
+          "description": "Daily spending limit (null for no limit)",
+          "pattern": "^[0-9]+$"
+        },
+        "weekly_limit": {
+          "type": "string",
+          "description": "Weekly spending limit (null for no limit)",
+          "pattern": "^[0-9]+$"
+        },
+        "monthly_limit": {
+          "type": "string",
+          "description": "Monthly spending limit (null for no limit)",
+          "pattern": "^[0-9]+$"
+        },
+        "per_transaction_cap": {
+          "type": "string",
+          "description": "Maximum per transaction (null for no limit)",
+          "pattern": "^[0-9]+$"
+        }
+      }
+    },
+    "whitelist_config": {
+      "type": "object",
+      "properties": {
+        "whitelist": {
+          "type": "array",
+          "description": "Approved recipient addresses",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[a-fA-F0-9]{64}$"
+          },
+          "uniqueItems": true
+        },
+        "blacklist": {
+          "type": "array",
+          "description": "Blocked recipient addresses",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[a-fA-F0-9]{64}$"
+          },
+          "uniqueItems": true
+        },
+        "enforce_whitelist": {
+          "type": "boolean",
+          "description": "Whether whitelist is enforced",
+          "default": false
+        }
+      }
+    },
+    "category_config": {
+      "type": "object",
+      "properties": {
+        "categories": {
+          "type": "object",
+          "description": "Category definitions",
+          "patternProperties": {
+            "^[0-9]+$": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "require_category": {
+          "type": "boolean",
+          "description": "Whether category assignment is required",
+          "default": true
+        }
+      }
+    },
+    "time_lock_config": {
+      "type": "object",
+      "properties": {
+        "base_duration": {
+          "type": "integer",
+          "description": "Base time-lock duration in milliseconds",
+          "minimum": 0
+        },
+        "amount_factor": {
+          "type": "number",
+          "description": "Factor for amount-based extension (duration += amount / factor)",
+          "minimum": 0
+        },
+        "category_overrides": {
+          "type": "object",
+          "description": "Category-specific time-lock durations",
+          "patternProperties": {
+            "^[0-9]+$": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "required": ["base_duration"]
+    },
+    "amount_threshold_config": {
+      "type": "object",
+      "properties": {
+        "thresholds": {
+          "type": "array",
+          "description": "Amount ranges with required signatures",
+          "items": {
+            "type": "object",
+            "properties": {
+              "min_amount": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "max_amount": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "required_signatures": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": ["min_amount", "required_signatures"]
+          }
+        }
+      },
+      "required": ["thresholds"]
+    },
+    "approval_config": {
+      "type": "object",
+      "properties": {
+        "required_signers": {
+          "type": "array",
+          "description": "Specific signers required for approval",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[a-fA-F0-9]{64}$"
+          }
+        },
+        "veto_signers": {
+          "type": "array",
+          "description": "Signers with veto power",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[a-fA-F0-9]{64}$"
+          }
+        },
+        "category": {
+          "type": "integer",
+          "description": "Category this approval policy applies to (null for all)"
+        }
+      }
+    }
+  }
+}

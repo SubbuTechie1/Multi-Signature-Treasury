@@ -1,0 +1,155 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Move Contracts Tests
+  contracts-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Sui CLI
+        run: |
+          curl -fLJO https://github.com/MystenLabs/sui/releases/download/testnet-v1.14.0/sui-testnet-v1.14.0-ubuntu-x86_64.tgz
+          tar -xzf sui-testnet-v1.14.0-ubuntu-x86_64.tgz
+          sudo mv target/release/sui /usr/local/bin/
+          sui --version
+
+      - name: Build Move Contracts
+        working-directory: ./contracts
+        run: sui move build
+
+      - name: Run Move Tests
+        working-directory: ./contracts
+        run: sui move test
+
+  # Backend Tests
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Lint
+        working-directory: ./backend
+        run: npm run lint
+
+      - name: Run Tests
+        working-directory: ./backend
+        run: npm test
+
+      - name: Build
+        working-directory: ./backend
+        run: npm run build
+
+  # Frontend Tests
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Run Tests
+        working-directory: ./frontend
+        run: npm test -- --passWithNoTests
+
+      - name: Build
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          CI: false
+
+  # Deploy to Testnet
+  deploy-testnet:
+    runs-on: ubuntu-latest
+    needs: [contracts-test, backend-test, frontend-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Sui CLI
+        run: |
+          curl -fLJO https://github.com/MystenLabs/sui/releases/download/testnet-v1.14.0/sui-testnet-v1.14.0-ubuntu-x86_64.tgz
+          tar -xzf sui-testnet-v1.14.0-ubuntu-x86_64.tgz
+          sudo mv target/release/sui /usr/local/bin/
+          sui --version
+
+      - name: Configure Sui Client
+        run: |
+          sui client new-env --alias testnet --rpc https://fullnode.testnet.sui.io:443
+          sui client switch --env testnet
+
+      - name: Deploy Contracts
+        working-directory: ./contracts
+        run: |
+          # In production, use proper key management
+          # sui client publish --gas-budget 100000000
+          echo "Deploy command ready. Configure with secrets in production."
+        env:
+          SUI_PRIVATE_KEY: ${{ secrets.SUI_PRIVATE_KEY }}
+
+  # Security Audit
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run npm audit (Backend)
+        working-directory: ./backend
+        run: npm audit --audit-level=moderate || true
+
+      - name: Run npm audit (Frontend)
+        working-directory: ./frontend
+        run: npm audit --audit-level=moderate || true
+
+  # Code Quality
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Check formatting (Backend)
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run lint || true
+
+      - name: Check formatting (Frontend)
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run lint || true

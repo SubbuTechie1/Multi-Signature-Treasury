@@ -1,0 +1,108 @@
+{
+  "$id": "https://example.org/schemas/proposal.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Proposal",
+  "description": "Schema for a treasury spending proposal",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique proposal identifier (Sui object ID)"
+    },
+    "treasury_id": {
+      "type": "string",
+      "description": "Associated treasury ID"
+    },
+    "proposer": {
+      "type": "string",
+      "description": "Address of proposal creator",
+      "pattern": "^0x[a-fA-F0-9]{64}$"
+    },
+    "transactions": {
+      "type": "array",
+      "description": "List of transactions to execute",
+      "items": {
+        "$ref": "#/definitions/transaction"
+      },
+      "minItems": 1,
+      "maxItems": 50
+    },
+    "category": {
+      "type": "integer",
+      "description": "Spending category: 0=Operations, 1=Marketing, 2=Development, 3=Grants, 4=Emergency",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "signatures": {
+      "type": "array",
+      "description": "Collected signatures",
+      "items": {
+        "$ref": "#/definitions/signature"
+      }
+    },
+    "created_at": {
+      "type": "integer",
+      "description": "Timestamp when proposal was created (Unix epoch milliseconds)",
+      "minimum": 0
+    },
+    "time_lock_end": {
+      "type": "integer",
+      "description": "Timestamp when time-lock expires (Unix epoch milliseconds)",
+      "minimum": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": ["created", "signed", "executable", "executed", "cancelled"],
+      "description": "Current proposal status"
+    },
+    "metadata": {
+      "type": "string",
+      "description": "Human-readable proposal description/justification",
+      "maxLength": 1000
+    }
+  },
+  "required": ["id", "treasury_id", "proposer", "transactions", "category", "created_at", "time_lock_end", "status"],
+  "definitions": {
+    "transaction": {
+      "type": "object",
+      "properties": {
+        "recipient": {
+          "type": "string",
+          "description": "Recipient address",
+          "pattern": "^0x[a-fA-F0-9]{64}$"
+        },
+        "amount": {
+          "type": "string",
+          "description": "Amount in smallest unit (to handle large integers)",
+          "pattern": "^[0-9]+$"
+        },
+        "coin_type": {
+          "type": "string",
+          "description": "Full coin type identifier (e.g., 0x2::sui::SUI)"
+        }
+      },
+      "required": ["recipient", "amount", "coin_type"]
+    },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "signer": {
+          "type": "string",
+          "description": "Address of signer",
+          "pattern": "^0x[a-fA-F0-9]{64}$"
+        },
+        "signature": {
+          "type": "string",
+          "description": "Signature bytes (hex encoded)",
+          "pattern": "^0x[a-fA-F0-9]+$"
+        },
+        "signed_at": {
+          "type": "integer",
+          "description": "Timestamp when signed (Unix epoch milliseconds)",
+          "minimum": 0
+        }
+      },
+      "required": ["signer", "signature", "signed_at"]
+    }
+  }
+}
