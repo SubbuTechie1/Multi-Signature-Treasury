@@ -58,6 +58,7 @@ treasuryRouter.post('/create', async (req: Request, res: Response) => {
  * Get all treasuries (owned by signer)
  */
 treasuryRouter.get('/list', async (req: Request, res: Response) => {
+  void req;
   try {
     const signerAddress = suiClient.getSignerAddress();
     
